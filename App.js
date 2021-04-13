@@ -4,6 +4,7 @@ var Ext = window.Ext4 || window.Ext;
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
+
     launch: function() {
         var that = this;
 
@@ -14,7 +15,26 @@ Ext.define('CustomApp', {
         that.WSJFScoreField = that.getSetting('WSJFScoreField');
         that.JobSizeField = that.getSetting('JobSizeField');
         that.ShowValuesAfterDecimal = that.getSettingsFields('ShowValuesAfterDecimal');
+
+        //Inititalize Rally.ui.RendererFactory 
+        if (this.enforceFibonacci()){
+            var fibStore = this.getFibonacciStore();
+            var fibConfig = function(){
+                return {
+                    editor:{
+                        xtype: 'rallycombobox',
+                        store: fibStore
+                    }
+                };
+            };
+
+            Rally.ui.grid.FieldColumnFactory[this.TimeCriticalityField] = fibConfig;
+            Rally.ui.grid.FieldColumnFactory[this.RROEValueField]=fibConfig;
+            Rally.ui.grid.FieldColumnFactory[this.UserBusinessValueField] = fibConfig;
+            Rally.ui.grid.FieldColumnFactory[this.JobSizeField] = fibConfig;
+        }
         
+
         this._grid = null;
         this._piCombobox = this.add({
             xtype: "rallyportfolioitemtypecombobox",
@@ -26,7 +46,23 @@ Ext.define('CustomApp', {
             }
         });
     },
-    
+    getMaxValue: function(){
+        return this.getSetting('maxValue') || 200;
+    },
+    getFibonacciStore: function(){
+        var store = [],
+            max = this.getMaxValue(),
+            x=1;
+        while (x<max){
+            store.push(x);
+            x = Math.round(x*((1+Math.sqrt(5))/2));
+        }
+        return store;
+    },
+    enforceFibonacci: function(){
+        var enforce = this.getSetting('EnforceFibonacci') === 'true' || this.getSetting('EnforceFibonacci') === true || false;  
+        return enforce;
+    },
     _onPICombobox: function() {
         var selectedType = this._piCombobox.getRecord();
         var model = selectedType.get('TypePath');
@@ -124,21 +160,25 @@ Ext.define('CustomApp', {
             ],
             gridConfig: {
                 store: store,
-                columnCfgs: [
-                    'Name',
-                    that.TimeCriticalityField, that.RROEValueField, that.UserBusinessValueField, that.JobSizeField, 
-                    this.getSetting("useExecutiveMandateField")===true ? this.getSetting("ExecutiveMandateField") : null,
-                    {
-                        text: "WSJF Score",
-                        dataIndex: that.WSJFScoreField,
-                        editor: null
-                    }
-                ]
+                columnCfgs: this.getColumnCfgs()
             },
             height: this.getHeight()
         });
     },
-    
+    getColumnCfgs: function(){
+        var me = this;
+        return [
+            'Name',
+            this.TimeCriticalityField, 
+            this.RROEValueField, this.UserBusinessValueField, this.JobSizeField, 
+            this.getSetting("useExecutiveMandateField")===true ? this.getSetting("ExecutiveMandateField") : null,
+            {
+                text: "WSJF Score",
+                dataIndex: this.WSJFScoreField,
+                editor: null
+            }
+        ];
+    },
     _calculateScore: function(records,loading)  {
         var that = this;
 
@@ -202,6 +242,11 @@ Ext.define('CustomApp', {
                 xtype: 'rallycheckboxfield',
                 label : "Use Custom Executive Mandate Field",
                 labelWidth: 200
+            },{
+                name: 'EnforceFibonacci',
+                xtype: 'rallycheckboxfield',
+                fieldLabel: 'Enforce Fibbonacci',
+                labelWidth: 200
             },
             {
                 name: 'ExecutiveMandateField',
@@ -238,6 +283,12 @@ Ext.define('CustomApp', {
                 xtype: 'rallytextfield',
                 label : "Job Size Field",
                 labelWidth: 200
+            },{
+                name: 'maxValue',
+                xtype: 'rallynumberfield',
+                label : "Max Fibonacci Value",
+                minValue: 0,
+                labelWidth: 200
             }
         ];
 
@@ -253,7 +304,9 @@ Ext.define('CustomApp', {
             RROEValueField : 'RROEValue',
             UserBusinessValueField : 'UserBusinessValue',
             WSJFScoreField : 'WSJFScore',
-            JobSizeField : 'JobSize'
+            JobSizeField : 'JobSize',
+            EnforceFibonacci: true,
+            maxValue: 200
         }
     }
 });
